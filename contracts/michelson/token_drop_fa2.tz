@@ -1,0 +1,174 @@
+parameter (or (pair %claim (list %proof bytes) (bytes %leaf)) (pair %transfer_tokens (address %address) (nat %value)));
+storage   (pair (pair (address %admin) (big_map %claimed address unit)) (pair (bytes %merkle_root) (address %token_address)));
+code
+  {
+    UNPAIR;     # @parameter : @storage
+    IF_LEFT
+      {
+        SWAP;       # @storage : @parameter%claim
+        # == claim ==
+        # sp.verify(~ (self.data.claimed.contains(sp.sender)), 'ADDRESS_HAS_ALREADY_CLAIMED') # @storage : @parameter%claim
+        DUP;        # @storage : @storage : @parameter%claim
+        DUG 2;      # @storage : @parameter%claim : @storage
+        CAR;        # pair (address %admin) (big_map %claimed address unit) : @parameter%claim : @storage
+        CDR;        # big_map address unit : @parameter%claim : @storage
+        SENDER;     # @sender : big_map address unit : @parameter%claim : @storage
+        MEM;        # bool : @parameter%claim : @storage
+        IF
+          {
+            PUSH string "ADDRESS_HAS_ALREADY_CLAIMED"; # string : @parameter%claim : @storage
+            FAILWITH;   # FAILED
+          }
+          {}; # @parameter%claim : @storage
+        # computed_hash = sp.local("computed_hash", sp.sha256(params.leaf)) # @parameter%claim : @storage
+        DUP;        # @parameter%claim : @parameter%claim : @storage
+        CDR;        # bytes : @parameter%claim : @storage
+        SHA256;     # bytes : @parameter%claim : @storage
+        SWAP;       # @parameter%claim : bytes : @storage
+        # for proof_element in params.proof: ... # @parameter%claim : bytes : @storage
+        DUP;        # @parameter%claim : @parameter%claim : bytes : @storage
+        DUG 2;      # @parameter%claim : bytes : @parameter%claim : @storage
+        CAR;        # list bytes : bytes : @parameter%claim : @storage
+        ITER
+          {
+            # if computed_hash.value < proof_element: # bytes : bytes : @parameter%claim : @storage
+            DUP;        # bytes : bytes : bytes : @parameter%claim : @storage
+            DUP 3;      # bytes : bytes : bytes : bytes : @parameter%claim : @storage
+            COMPARE;    # int : bytes : bytes : @parameter%claim : @storage
+            LT;         # bool : bytes : bytes : @parameter%claim : @storage
+            IF
+              {
+                SWAP;       # bytes : bytes : @parameter%claim : @storage
+                # computed_hash.value = sp.sha256(computed_hash.value + proof_element) # bytes : bytes : @parameter%claim : @storage
+                CONCAT;     # bytes : @parameter%claim : @storage
+                SHA256;     # bytes : @parameter%claim : @storage
+              }
+              {
+                # computed_hash.value = sp.sha256(proof_element + computed_hash.value) # bytes : bytes : @parameter%claim : @storage
+                CONCAT;     # bytes : @parameter%claim : @storage
+                SHA256;     # bytes : @parameter%claim : @storage
+              }; # bytes : @parameter%claim : @storage
+          }; # bytes : @parameter%claim : @storage
+        # sp.verify(computed_hash.value == self.data.merkle_root, 'INVALID_MERKLE_PROOF') # bytes : @parameter%claim : @storage
+        DUP 3;      # @storage : bytes : @parameter%claim : @storage
+        GET 3;      # bytes : bytes : @parameter%claim : @storage
+        COMPARE;    # int : @parameter%claim : @storage
+        EQ;         # bool : @parameter%claim : @storage
+        IF
+          {}
+          {
+            PUSH string "INVALID_MERKLE_PROOF"; # string : @parameter%claim : @storage
+            FAILWITH;   # FAILED
+          }; # @parameter%claim : @storage
+        # sp.verify(sp.unpack(params.leaf, sp.TRecord(address = sp.TAddress, value = sp.TNat).layout(("address", "value"))).open_some(message = 'INVALID_LEAF').address == sp.sender, 'LEAF_ADDRESS_DOES_NOT_MATCH_SENDER') # @parameter%claim : @storage
+        DUP;        # @parameter%claim : @parameter%claim : @storage
+        CDR;        # bytes : @parameter%claim : @storage
+        UNPACK (pair address nat); # option (pair address nat) : @parameter%claim : @storage
+        IF_NONE
+          {
+            PUSH string "INVALID_LEAF"; # string : @parameter%claim : @storage
+            FAILWITH;   # FAILED
+          }
+          {}; # @some : @parameter%claim : @storage
+        CAR;        # address : @parameter%claim : @storage
+        SENDER;     # @sender : address : @parameter%claim : @storage
+        COMPARE;    # int : @parameter%claim : @storage
+        EQ;         # bool : @parameter%claim : @storage
+        IF
+          {}
+          {
+            PUSH string "LEAF_ADDRESS_DOES_NOT_MATCH_SENDER"; # string : @parameter%claim : @storage
+            FAILWITH;   # FAILED
+          }; # @parameter%claim : @storage
+        # sp.transfer(sp.list([sp.record(from_ = sp.self_address, txs = sp.list([sp.record(to_ = sp.sender, token_id = 0, amount = sp.unpack(params.leaf, sp.TRecord(address = sp.TAddress, value = sp.TNat).layout(("address", "value"))).open_some(message = 'INVALID_LEAF').value)]))]), sp.tez(0), sp.contract(sp.TList(sp.TRecord(from_ = sp.TAddress, txs = sp.TList(sp.TRecord(amount = sp.TNat, to_ = sp.TAddress, token_id = sp.TNat).layout(("to_", ("token_id", "amount"))))).layout(("from_", "txs"))), self.data.token_address, entry_point='transfer').open_some()) # @parameter%claim : @storage
+        NIL operation; # list operation : @parameter%claim : @storage
+        DUP 3;      # @storage : list operation : @parameter%claim : @storage
+        GET 4;      # address : list operation : @parameter%claim : @storage
+        CONTRACT %transfer (list (pair (address %from_) (list %txs (pair (address %to_) (pair (nat %token_id) (nat %amount)))))); # option (contract (list (pair (address %from_) (list %txs (pair (address %to_) (pair (nat %token_id) (nat %amount))))))) : list operation : @parameter%claim : @storage
+        IF_NONE
+          {
+            PUSH int 57; # int : list operation : @parameter%claim : @storage
+            FAILWITH;   # FAILED
+          }
+          {}; # @some : list operation : @parameter%claim : @storage
+        PUSH mutez 0; # mutez : @some : list operation : @parameter%claim : @storage
+        NIL (pair address (list (pair address (pair nat nat)))); # list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : @parameter%claim : @storage
+        NIL (pair address (pair nat nat)); # list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : @parameter%claim : @storage
+        DIG 5;      # @parameter%claim : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : @storage
+        CDR;        # bytes : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : @storage
+        UNPACK (pair address nat); # option (pair address nat) : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : @storage
+        IF_NONE
+          {
+            PUSH string "INVALID_LEAF"; # string : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : @storage
+            FAILWITH;   # FAILED
+          }
+          {}; # @some : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : @storage
+        CDR;        # nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : @storage
+        PUSH nat 0; # nat : nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : @storage
+        SENDER;     # @sender : nat : nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : @storage
+        PAIR 3;     # pair @sender (pair nat nat) : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : @storage
+        CONS;       # list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : @storage
+        SELF_ADDRESS; # @self : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : @storage
+        PAIR;       # pair @self (list (pair address (pair nat nat))) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : @storage
+        CONS;       # list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : @storage
+        TRANSFER_TOKENS; # operation : list operation : @storage
+        CONS;       # list operation : @storage
+        SWAP;       # @storage : list operation
+        # self.data.claimed[sp.sender] = sp.unit # @storage : list operation
+        UNPAIR;     # pair (address %admin) (big_map %claimed address unit) : pair (bytes %merkle_root) (address %token_address) : list operation
+        UNPAIR;     # address : big_map address unit : pair (bytes %merkle_root) (address %token_address) : list operation
+        SWAP;       # big_map address unit : address : pair (bytes %merkle_root) (address %token_address) : list operation
+        PUSH (option unit) (Some Unit); # option unit : big_map address unit : address : pair (bytes %merkle_root) (address %token_address) : list operation
+        SENDER;     # @sender : option unit : big_map address unit : address : pair (bytes %merkle_root) (address %token_address) : list operation
+        UPDATE;     # big_map address unit : address : pair (bytes %merkle_root) (address %token_address) : list operation
+        SWAP;       # address : big_map address unit : pair (bytes %merkle_root) (address %token_address) : list operation
+        PAIR;       # pair address (big_map address unit) : pair (bytes %merkle_root) (address %token_address) : list operation
+        PAIR;       # pair (pair address (big_map address unit)) (pair (bytes %merkle_root) (address %token_address)) : list operation
+        SWAP;       # list operation : pair (pair address (big_map address unit)) (pair (bytes %merkle_root) (address %token_address))
+      }
+      {
+        SWAP;       # @storage : @parameter%transfer_tokens
+        # == transfer_tokens ==
+        # sp.verify(sp.sender == self.data.admin, 'NOT_AUTHORISED') # @storage : @parameter%transfer_tokens
+        DUP;        # @storage : @storage : @parameter%transfer_tokens
+        DUG 2;      # @storage : @parameter%transfer_tokens : @storage
+        CAR;        # pair (address %admin) (big_map %claimed address unit) : @parameter%transfer_tokens : @storage
+        CAR;        # address : @parameter%transfer_tokens : @storage
+        SENDER;     # @sender : address : @parameter%transfer_tokens : @storage
+        COMPARE;    # int : @parameter%transfer_tokens : @storage
+        EQ;         # bool : @parameter%transfer_tokens : @storage
+        IF
+          {}
+          {
+            PUSH string "NOT_AUTHORISED"; # string : @parameter%transfer_tokens : @storage
+            FAILWITH;   # FAILED
+          }; # @parameter%transfer_tokens : @storage
+        # sp.transfer(sp.list([sp.record(from_ = sp.self_address, txs = sp.list([sp.record(to_ = params.address, token_id = 0, amount = params.value)]))]), sp.tez(0), sp.contract(sp.TList(sp.TRecord(from_ = sp.TAddress, txs = sp.TList(sp.TRecord(amount = sp.TNat, to_ = sp.TAddress, token_id = sp.TNat).layout(("to_", ("token_id", "amount"))))).layout(("from_", "txs"))), self.data.token_address, entry_point='transfer').open_some()) # @parameter%transfer_tokens : @storage
+        NIL operation; # list operation : @parameter%transfer_tokens : @storage
+        DUP 3;      # @storage : list operation : @parameter%transfer_tokens : @storage
+        GET 4;      # address : list operation : @parameter%transfer_tokens : @storage
+        CONTRACT %transfer (list (pair (address %from_) (list %txs (pair (address %to_) (pair (nat %token_id) (nat %amount)))))); # option (contract (list (pair (address %from_) (list %txs (pair (address %to_) (pair (nat %token_id) (nat %amount))))))) : list operation : @parameter%transfer_tokens : @storage
+        IF_NONE
+          {
+            PUSH int 96; # int : list operation : @parameter%transfer_tokens : @storage
+            FAILWITH;   # FAILED
+          }
+          {}; # @some : list operation : @parameter%transfer_tokens : @storage
+        PUSH mutez 0; # mutez : @some : list operation : @parameter%transfer_tokens : @storage
+        NIL (pair address (list (pair address (pair nat nat)))); # list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : @parameter%transfer_tokens : @storage
+        NIL (pair address (pair nat nat)); # list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : @parameter%transfer_tokens : @storage
+        DUP 6;      # @parameter%transfer_tokens : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : @parameter%transfer_tokens : @storage
+        CDR;        # nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : @parameter%transfer_tokens : @storage
+        PUSH nat 0; # nat : nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : @parameter%transfer_tokens : @storage
+        DIG 7;      # @parameter%transfer_tokens : nat : nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : @storage
+        CAR;        # address : nat : nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : @storage
+        PAIR 3;     # pair address (pair nat nat) : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : @storage
+        CONS;       # list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : @storage
+        SELF_ADDRESS; # @self : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : @storage
+        PAIR;       # pair @self (list (pair address (pair nat nat))) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : @storage
+        CONS;       # list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : @storage
+        TRANSFER_TOKENS; # operation : list operation : @storage
+        CONS;       # list operation : @storage
+      }; # list operation : pair (pair address (big_map address unit)) (pair (bytes %merkle_root) (address %token_address))
+    PAIR;       # pair (list operation) (pair (pair address (big_map address unit)) (pair (bytes %merkle_root) (address %token_address)))
+  };
