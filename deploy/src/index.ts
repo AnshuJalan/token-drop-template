@@ -13,7 +13,7 @@ tezos.setProvider({
 // Admin address of the contract
 const ADMIN = "tz1ZczbHu1iLWRa88n9CUiCKDGex5ticp19S";
 
-const TOKEN_ADDRESS = "tz1ZczbHu1iLWRa88n9CUiCKDGex5ticp19S";
+const TOKEN_ADDRESS = "KT1T4cpUNNpzEWxLgkDw1QirYAPiaBv1natk";
 
 const TOKEN_TYPE = Token.FA12;
 

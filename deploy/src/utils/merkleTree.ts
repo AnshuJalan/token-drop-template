@@ -41,7 +41,7 @@ export const buildMerkle = async (tezos: TezosToolkit) => {
   for (let i = 0; i < dropAddresses.length; i++) {
     mrklData[dropAddresses[i]] = {
       tokens: Drop[dropAddresses[i]],
-      proof: tree.getHexProof(leaves[i].toString()),
+      proof: tree.getHexProof(leaves[i].toString()).map((proof) => proof.slice(2)),
       leafDataPacked: packedList[i],
     };
   }
