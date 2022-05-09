@@ -2,26 +2,26 @@ import fse from "fs-extra";
 import path from "path";
 import CryptoJS from "crypto-js";
 import { MerkleTree } from "merkletreejs";
-import { TezosToolkit } from "@taquito/taquito";
+import { packDataBytes } from "@taquito/michel-codec";
 
 // Drop data
 import Drop from "../drop";
 
-export const buildMerkle = async (tezos: TezosToolkit) => {
+export const buildMerkle = async () => {
   const packedList: string[] = [];
   const dropAddresses: any[] = Object.keys(Drop);
   for (const address of dropAddresses) {
-    const pack = await tezos.rpc.packData({
-      data: {
+    const pack = packDataBytes(
+      {
         prim: "Pair",
         args: [{ string: address }, { int: Drop[address] }],
       },
-      type: {
+      {
         prim: "pair",
         args: [{ prim: "address" }, { prim: "nat" }],
-      },
-    });
-    packedList.push(pack.packed);
+      }
+    );
+    packedList.push(pack.bytes);
   }
 
   const leaves = packedList.map((x) => CryptoJS.SHA256(CryptoJS.enc.Hex.parse(x)));
@@ -46,9 +46,13 @@ export const buildMerkle = async (tezos: TezosToolkit) => {
     };
   }
 
-  fse.outputFile(path.join(__dirname, "../merkle_build/mrklData.json"), JSON.stringify(mrklData), (err) => {
-    if (err) console.log(err);
-  });
+  fse.outputFile(
+    path.join(__dirname, "../merkle_build/mrklData.json"),
+    JSON.stringify(mrklData),
+    (err) => {
+      if (err) console.log(err);
+    }
+  );
 
   return tree.getHexRoot();
 };

@@ -4,7 +4,7 @@ import { InMemorySigner } from "@taquito/signer";
 // Types and utlities
 import { deploy, DeployParams, Token } from "./deploy";
 
-const tezos = new TezosToolkit(`https://${process.argv[2]}.api.tez.ie`);
+const tezos = new TezosToolkit(`https://${process.argv[2]}.smartpy.io`);
 
 tezos.setProvider({
   signer: new InMemorySigner(process.env.PRIVATE_KEY as string),

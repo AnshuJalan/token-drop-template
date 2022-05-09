@@ -30,7 +30,7 @@ export const deploy = async (deployParams: DeployParams) => {
 
     // Build merkle tree and get root
     console.log(">> Building Merkle Tree");
-    const merkleRoot = await buildMerkle(deployParams.tezos);
+    const merkleRoot = await buildMerkle();
     console.log(">> Built Merkle Tree!");
     console.log(">>> Merkle Root: ", merkleRoot);
 
@@ -60,7 +60,11 @@ const loadFile = (filename: string): string => {
   return file;
 };
 
-const deployContract = async (code: string, storage: string, tezos: TezosToolkit): Promise<string> => {
+const deployContract = async (
+  code: string,
+  storage: string,
+  tezos: TezosToolkit
+): Promise<string> => {
   try {
     const originOp = await tezos.contract.originate({
       code: code,

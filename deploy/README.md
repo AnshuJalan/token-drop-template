@@ -40,8 +40,8 @@ First, set the values of the configuration fields in the `index.ts` file in `src
 - `TOKEN_ADDRESS` : Address of the token being dropped.
 - `TOKEN_TYPE` : Type of the token i.e FA1.2 or FA2.
 
-Once the configuration fields are prepared, the deployment can be done by providing a private key as an environment variable and running `deploy:testnet` script:
+Once the configuration fields are prepared, the deployment can be done by providing a private key as an environment variable and running `deploy` script and providing name of the network to use (eg: ithacanet/mainnet):
 
 ```
-$ PRIVATE_KEY=<Your private key> yarn deploy:testnet
+$ PRIVATE_KEY=<Your private key> yarn deploy <Network name>
 ```

@@ -4,7 +4,7 @@
   "description": "Deploy scripts for Box Defi",
   "main": "index.js",
   "scripts": {
-    "deploy:testnet": "ts-node ./src/index.ts hangzhounet",
+    "deploy": "ts-node ./src/index.ts",
     "build-merkle": "ts-node ./src/utils/index.ts"
   },
   "keywords": [],
