@@ -45,3 +45,7 @@ Once the configuration fields are prepared, the deployment can be done by provid
 ```
 $ PRIVATE_KEY=<Your private key> yarn deploy <Network name>
 ```
+
+### Transfer Tokens to Drop Contract Address
+
+Drop contract transfers the tokens from it's own addess to the claimer. After deployment, transfer or mint a sufficient number of tokens at the drop address to allow all claimers to retrieve their share. 
